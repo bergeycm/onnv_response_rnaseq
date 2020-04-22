@@ -20,6 +20,7 @@ library(ggfortify)
 library(ggrepel)
 library(scales)
 library(reshape2)
+library(gprofiler2)
 
 # ----------------------------------------------------------------------------------------
 # --- Tally read counts using rSubread
@@ -150,48 +151,55 @@ d.disp = estimateDisp(d, design)
 fit = glmQLFit(d.disp, design)
 
 my.contrasts = makeContrasts(
-    sex.FvM = (F_D2_neg + F_D2_plus + F_D7_neg + F_D7_plus) -
-              (M_D2_neg + M_D2_plus + M_D7_neg + M_D7_plus),
+    # Simple binary comparisons with one grouping - Sex
+    sex.FvM = (F_D2_neg + F_D2_plus + F_D7_neg + F_D7_plus) / 4 -
+              (M_D2_neg + M_D2_plus + M_D7_neg + M_D7_plus) / 4,
     sex.FvM.onlyD2 =
-              (F_D2_neg + F_D2_plus) -
-              (M_D2_neg + M_D2_plus),
+              (F_D2_neg + F_D2_plus) / 2 -
+              (M_D2_neg + M_D2_plus) / 2,
     sex.FvM.onlyD7 =
-              (F_D7_neg + F_D7_plus) -
-              (M_D7_neg + M_D7_plus),
-    inf.FvT = (F_D2_neg + F_D7_neg + M_D2_neg + M_D7_neg) -
-              (F_D2_plus + F_D7_plus + M_D2_plus + M_D7_plus),
-    dpi.2v7 = (F_D2_neg + F_D2_plus + M_D2_neg + M_D2_plus) -
-              (F_D7_neg + F_D7_plus + M_D7_neg + M_D7_plus),
+              (F_D7_neg + F_D7_plus) / 2 -
+              (M_D7_neg + M_D7_plus) / 2,
+
+    # Simple binary comparisons with one grouping - Infection status
+    inf.FvT =        (F_D2_neg  + F_D7_neg  + M_D2_neg  + M_D7_neg ) / 4 -
+                     (F_D2_plus + F_D7_plus + M_D2_plus + M_D7_plus) / 4,
+    inf.FvT.onlyD2 = (F_D2_neg  + M_D2_neg ) / 2 -
+                     (F_D2_plus + M_D2_plus) / 2,
+    inf.FvT.onlyD7 = (F_D7_neg  + M_D7_neg ) / 2 -
+                     (F_D7_plus + M_D7_plus) / 2,
+    inf.FvT.onlyF =  (F_D2_neg  + F_D7_neg ) / 2 -
+                     (F_D2_plus + F_D7_plus) / 2,
+    inf.FvT.onlyM =  (M_D2_neg  + M_D7_neg ) / 2 -
+                     (M_D2_plus + M_D7_plus) / 2,
+
+    # Simple binary comparisons with one grouping - DPI
+    dpi.2v7 =       (F_D2_neg + F_D2_plus + M_D2_neg + M_D2_plus) / 4 -
+                    (F_D7_neg + F_D7_plus + M_D7_neg + M_D7_plus) / 4,
+    dpi.2v7.onlyF = (F_D2_neg + F_D2_plus) / 2 -
+                    (F_D7_neg + F_D7_plus) / 2,
+    dpi.2v7.onlyM = (M_D2_neg + M_D2_plus) / 2 -
+                    (M_D7_neg + M_D7_plus) / 2,
+
+    # Between-sex differences by time
+    between.sex.dpi =
+              ((F_D2_neg + F_D2_plus) / 2 - (F_D7_neg + F_D7_plus) / 2) / 2 -
+              ((M_D2_neg + M_D2_plus) / 2 - (M_D7_neg + M_D7_plus) / 2) / 2,
+
+    # Between-sex differences by infection status
     between.sex.inf =
-              ((F_D2_neg + F_D7_neg) - (F_D2_plus + F_D7_plus)) -
-              ((M_D2_neg + M_D7_neg) - (M_D2_plus + M_D7_plus)),
+              ((F_D2_neg + F_D7_neg) / 2 - (F_D2_plus + F_D7_plus) / 2) / 2 -
+              ((M_D2_neg + M_D7_neg) / 2 - (M_D2_plus + M_D7_plus) / 2) / 2,
+    between.sex.inf.onlyD2 =
+              (F_D2_neg - F_D2_plus) / 2 -
+              (M_D2_neg - M_D2_plus) / 2,
+    between.sex.inf.onlyD7 =
+              (F_D7_neg - F_D7_plus) / 2 -
+              (M_D7_neg - M_D7_plus) / 2,
     levels = design)
 
 #    # Levels:
 #    # F_D2_neg F_D2_plus F_D7_neg F_D7_plus M_D2_neg M_D2_plus M_D7_neg M_D7_plus
-#
-#    # Simple binary comparisons with one grouping
-#    sex M vs sex F
-#    # And the same for just dpi 2 and just dpi 7
-#    inf T vs inf F
-#    # And the same for just dpi 2 and just dpi 7 
-#    dpi 2 vs dpi 7
-#
-#    # Within-sex differences by time
-#    (sex M dpi 2) vs (sex M dpi 7) 
-#    (sex F dpi 2) vs (sex F dpi 7) 
-#
-#    # Between-sex differences by time
-#    [(sex M dpi 2) vs (sex M dpi 7)] vs [(sex F dpi 2) vs (sex F dpi 7)] 
-#
-#    # Within-sex differences by infection status
-#    (sex M inf F) vs (sex M inf T) 
-#    (sex F inf F) vs (sex F inf T) 
-#    # And the same for just dpi 2 and just dpi 7 
-#
-#    # Between-sex differences by infection status
-#    [(sex M inf F) vs (sex M inf T)] vs [(sex F inf F) vs (sex F inf T)]
-#    # And the same for just dpi 2 and just dpi 7 
 
 contrast.list = colnames(my.contrasts)
 
@@ -226,12 +234,25 @@ write.de.table = function (contrast, fdr.cutoff=0.1) {
 
 fdr.cutoffs = list()
 
-fdr.cutoffs[["sex.FvM"]] = 1e-20
+fdr.cutoffs[["sex.FvM"]]        = 1e-18
 fdr.cutoffs[["sex.FvM.onlyD2"]] = 1e-18
 fdr.cutoffs[["sex.FvM.onlyD7"]] = 1e-18
-fdr.cutoffs[["inf.FvT"]] = 1e-3
-fdr.cutoffs[["dpi.2v7"]] = 1e-5
-fdr.cutoffs[["between.sex.inf"]] = 0.2
+
+fdr.cutoffs[["inf.FvT"]]        = 1e-3
+fdr.cutoffs[["inf.FvT.onlyD2"]] = 1e-3
+fdr.cutoffs[["inf.FvT.onlyD7"]] = 0.1   # Reduced
+fdr.cutoffs[["inf.FvT.onlyF"]]  = 1e-3
+fdr.cutoffs[["inf.FvT.onlyM"]]  = 0.1   # Reduced
+
+fdr.cutoffs[["dpi.2v7"]]       = 1e-3
+fdr.cutoffs[["dpi.2v7.onlyF"]] = 1e-3
+fdr.cutoffs[["dpi.2v7.onlyM"]] = 1e-3
+
+fdr.cutoffs[["between.sex.dpi"]] = 1e-3
+
+fdr.cutoffs[["between.sex.inf"]]        = 0.1  # Reduced
+fdr.cutoffs[["between.sex.inf.onlyD2"]] = 1e-2
+fdr.cutoffs[["between.sex.inf.onlyD7"]] = 0.5  # Reduced A LOT
 
 all.de = lapply(contrast.list, function(x) { write.de.table(x, fdr.cutoffs[[x]]) })
 names(all.de) = contrast.list
@@ -262,12 +283,28 @@ do.md.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
 }
 
 plot.titles = list()
-plot.titles[["sex.FvM"]] = "Sex (Female vs. Male)"
+plot.titles[["sex.FvM"]]        = "Sex (Female vs. Male)"
 plot.titles[["sex.FvM.onlyD2"]] = "Sex (Female vs. Male) [2 dpi]"
 plot.titles[["sex.FvM.onlyD7"]] = "Sex (Female vs. Male) [7 dpi]"
-plot.titles[["inf.FvT"]] = "Infection status (Control vs. Infected)"
+
+plot.titles[["inf.FvT"]]        = "Infection status (Control vs. Infected)"
+plot.titles[["inf.FvT.onlyD2"]] = "Infection status (Control vs. Infected) [2 dpi]"
+plot.titles[["inf.FvT.onlyD7"]] = "Infection status (Control vs. Infected) [7 dpi]"
+plot.titles[["inf.FvT.onlyF"]]  = "Infection status (Control vs. Infected) [females]"
+plot.titles[["inf.FvT.onlyM"]]  = "Infection status (Control vs. Infected) [males]"
+
 plot.titles[["dpi.2v7"]] = "DPI (2 vs 7 days)"
-plot.titles[["between.sex.inf"]] = "Sex-based response to infection (Female vs. Male)"
+plot.titles[["dpi.2v7.onlyF"]] = "DPI (2 vs 7 days) [females]"
+plot.titles[["dpi.2v7.onlyM"]] = "DPI (2 vs 7 days) [males]"
+
+plot.titles[["between.sex.dpi"]] = "Sex-based response to time (Female vs. Male)"
+
+plot.titles[["between.sex.inf"]] =
+                            "Sex-based response to infection (Female vs. Male)"
+plot.titles[["between.sex.inf.onlyD2"]] =
+                            "Sex-based response to infection (Female vs. Male) [2 dpi]"
+plot.titles[["between.sex.inf.onlyD7"]] =
+                            "Sex-based response to infection (Female vs. Male) [7 dpi]"
 
 tmp = lapply(contrast.list, function(x) {
     do.md.plot(x, fdr.cutoffs[[x]], plot.titles[[x]])
@@ -307,6 +344,9 @@ tmp = lapply(contrast.list, function(x) {
 
 do.heatmap.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
 
+    write(paste0("Heatmap for contrast [", contrast,
+            "]"), stderr())
+
     adj.p = p.adjust(qlf[[contrast]]$table$PValue, method="fdr")
 
     de.genes = rownames(qlf[[contrast]]$table)[adj.p < fdr.cutoff &
@@ -314,6 +354,22 @@ do.heatmap.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
 
     d.cpm = cpm(d, log=TRUE, prior.count = 1)
     de.cpm = d.cpm[which(rownames(d.cpm) %in% de.genes),]
+
+    if (length(de.genes) == 0) {
+        write(paste0("No DE genes for contrast [", contrast,
+            "]. Skipping heatmap."), stderr())
+        return(NA)
+    }
+
+    # Stop this from being a vector instead of a matrix
+    if (length(de.genes) < 2) {
+        de.cpm = t(as.matrix(de.cpm))
+        row.names(de.cpm) = de.genes
+
+        write(paste0("Clustering requires >= 2 DE genes. ",
+            "Skipping heatmap for contrast [", contrast, "]."), stderr())
+        return(NA)
+    }
 
     pal = colorRampPalette(rev(brewer.pal(9, "Blues")))(255)[255:1]
 
@@ -334,11 +390,19 @@ tmp = lapply(contrast.list, function(x) {
 
 do.pca.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
 
+    write(paste0("Doing PCA plot for contrast [", contrast, "]."), stderr())
+
     adj.p = p.adjust(qlf[[contrast]]$table$PValue, method="fdr")
 
     de.genes = rownames(qlf[[contrast]]$table)[
                             adj.p < fdr.cutoff &
                             abs(qlf[[contrast]]$table$logFC) > 1.5]
+
+    if (length(de.genes) <= 2) {
+        write(paste0("Insufficient DE genes for contrast [", contrast,
+            "]. Skipping PCA."), stderr())
+        return(NA)
+    }
 
     d.cpm = cpm(d, log=TRUE, prior.count = 1)
     de.cpm = d.cpm[which(rownames(d.cpm) %in% de.genes),]
@@ -356,7 +420,7 @@ do.pca.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
 
     # Note colored by p-value, not adjusted p-value
     p = ggplot(res.pca$x, aes(PC1, PC2, label=pca.labels,
-            color=de.gene.info$logFC, size=log(de.gene.info$PValue))) +
+            color=-1 * de.gene.info$logFC, size=-1 * log(de.gene.info$PValue))) +
         geom_point() +
         geom_text_repel(size=2, segment.size=0.2, color="black") +
         coord_fixed() +
@@ -389,6 +453,12 @@ do.fc_histogram.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
 
     gene.info = qlf[[contrast]]$table
     gene.info$is.DE = FALSE
+
+    if (sum(adj.p < fdr.cutoff) == 0) {
+        write(paste0("Insufficient DE genes for contrast [", contrast,
+            "]. Skipping Histogram of fold change"), stderr())
+        return(NA)
+    }
 
     # Note filtering only based on FDR for this, not log(FC) too
     gene.info[adj.p < fdr.cutoff,]$is.DE = TRUE
@@ -447,6 +517,8 @@ do.expr_stripchart.plot = function (contrast, fdr.cutoff=0.1, plot.title,
     return(NA)
 }
 
+# --- Sex
+
 do.expr_stripchart.plot("sex.FvM", fdr.cutoffs[["sex.FvM"]],
     plot.titles[["sex.FvM"]],
     "sex", "infection.status", "dpi")
@@ -459,21 +531,142 @@ do.expr_stripchart.plot("sex.FvM.onlyD7", fdr.cutoffs[["sex.FvM.onlyD7"]],
     plot.titles[["sex.FvM.onlyD7"]],
     "sex", "infection.status", "sex")
 
+# --- Infection status
+
 do.expr_stripchart.plot("inf.FvT", fdr.cutoffs[["inf.FvT"]],
     plot.titles[["inf.FvT"]],
     "infection.status", "sex", "dpi")
+
+do.expr_stripchart.plot("inf.FvT.onlyD2", fdr.cutoffs[["inf.FvT.onlyD2"]],
+    plot.titles[["inf.FvT.onlyD2"]],
+    "infection.status", "sex", "dpi")
+
+do.expr_stripchart.plot("inf.FvT.onlyD7", fdr.cutoffs[["inf.FvT.onlyD7"]],
+    plot.titles[["inf.FvT.onlyD7"]],
+    "infection.status", "sex", "dpi")
+
+do.expr_stripchart.plot("inf.FvT.onlyF", fdr.cutoffs[["inf.FvT.onlyF"]],
+    plot.titles[["inf.FvT.onlyF"]],
+    "infection.status", "dpi", "sex")
+
+do.expr_stripchart.plot("inf.FvT.onlyM", fdr.cutoffs[["inf.FvT.onlyM"]],
+    plot.titles[["inf.FvT.onlyM"]],
+    "infection.status", "dpi", "sex")
+
+# --- DPI
 
 do.expr_stripchart.plot("dpi.2v7", fdr.cutoffs[["dpi.2v7"]],
     plot.titles[["dpi.2v7"]],
     "infection.status", "sex", "dpi")
 
+do.expr_stripchart.plot("dpi.2v7.onlyF", fdr.cutoffs[["dpi.2v7.onlyF"]],
+    plot.titles[["dpi.2v7.onlyF"]],
+    "infection.status", "dpi", "sex")
+
+do.expr_stripchart.plot("dpi.2v7.onlyM", fdr.cutoffs[["dpi.2v7.onlyM"]],
+    plot.titles[["dpi.2v7.onlyM"]],
+    "infection.status", "dpi", "sex")
+
+# --- More complicated contrasts
+
+do.expr_stripchart.plot("between.sex.dpi", fdr.cutoffs[["between.sex.dpi"]],
+    plot.titles[["between.sex.dpi"]],
+    "sex", "dpi", "infection.status")
+
 do.expr_stripchart.plot("between.sex.inf", fdr.cutoffs[["between.sex.inf"]],
     plot.titles[["between.sex.inf"]],
     "sex", "infection.status", "dpi")
 
+do.expr_stripchart.plot("between.sex.inf.onlyD2", fdr.cutoffs[["between.sex.inf.onlyD2"]],
+    plot.titles[["between.sex.inf.onlyD2"]],
+    "sex", "infection.status", "dpi")
+
+do.expr_stripchart.plot("between.sex.inf.onlyD7", fdr.cutoffs[["between.sex.inf.onlyD7"]],
+    plot.titles[["between.sex.inf.onlyD7"]],
+    "sex", "infection.status", "dpi")
+
 # ----------------------------------------------------------------------------------------
-# Not done: - Venn diagrams indicating overlap of ONNV-regulated genes for the
-#               different treatments, one for each sex (M/F).
-#           - GO term enrichment analyses
-#           - Make plots less ugly, more consistent
+# --- Do GO enrichment analysis
 # ----------------------------------------------------------------------------------------
+
+find.overrep.go = function (contrast, fdr.cutoff=0.1) {
+
+    write(paste0("Doing GO enrichment analysis for contrast [",
+        contrast, "]."), stderr())
+
+    adj.p = p.adjust(qlf[[contrast]]$table$PValue, method="fdr")
+
+    de.genes.info = qlf[[contrast]]$table[
+                            adj.p < fdr.cutoff &
+                            abs(qlf[[contrast]]$table$logFC) > 1.5,]
+    de.genes = rownames(de.genes.info)
+
+    de.genes.up = rownames(de.genes.info[de.genes.info$logFC > 0,])
+    de.genes.dn = rownames(de.genes.info[de.genes.info$logFC < 0,])
+
+    if (length(de.genes.up) > 0) {
+        gpro.up = gost(de.genes.up,
+            organism = "agambiae", ordered_query = FALSE,
+            multi_query = FALSE, significant = TRUE, exclude_iea = TRUE,
+            measure_underrepresentation = FALSE, evcodes = FALSE,
+            user_threshold = 0.2, correction_method = "fdr",
+            domain_scope = "annotated",
+            custom_bg = rownames(qlf[[contrast]]$table),
+            numeric_ns="NO_NAMESPACE", sources = NULL, as_short_link = FALSE)
+        gpro.up.simp = gpro.up$result
+        gpro.up.simp = gpro.up.simp[gpro.up.simp$significant,
+            c("p_value", "term_size", "query_size", "intersection_size",
+                "source", "term_id", "term_name")]
+
+        if ((nrow(gpro.up.simp) > 0) && (is.null(gpro.up.simp) == FALSE)) {
+            gpro.up.simp = cbind(contrast, gpro.up.simp)
+            write.table(gpro.up.simp, file=paste0("reports/GO_overrep-", contrast, ".up.txt"),
+                sep="\t", row.names=FALSE)
+        } else {
+            write(paste0("Insufficient significant upregulated GO terms for contrast [",
+                contrast,
+                "]. No output file created"), stderr())
+        }
+    } else {
+        write(paste0("Insufficient significant upregulated GO terms for contrast [",
+            contrast,
+            "]. No output file created"), stderr())
+    }
+
+    if (length(de.genes.dn) > 0) {
+        gpro.dn = gost(de.genes.dn,
+            organism = "agambiae", ordered_query = FALSE,
+            multi_query = FALSE, significant = TRUE, exclude_iea = TRUE,
+            measure_underrepresentation = FALSE, evcodes = FALSE,
+            user_threshold = 0.2, correction_method = "fdr",
+            domain_scope = "annotated",
+            custom_bg = rownames(qlf[[contrast]]$table),
+            numeric_ns="NO_NAMESPACE", sources = NULL, as_short_link = FALSE)
+        gpro.dn.simp = gpro.dn$result
+        gpro.dn.simp = gpro.dn.simp[gpro.up.simp$significant,
+            c("p_value", "term_size", "query_size", "intersection_size",
+                "source", "term_id", "term_name")]
+
+        if ((nrow(gpro.dn.simp) > 0) && (is.null(gpro.dn.simp) == FALSE)) {
+            gpro.dn.simp = cbind(contrast, gpro.dn.simp)
+            write.table(gpro.dn.simp,
+                file=paste0("reports/GO_overrep-", contrast, ".down.txt"),
+                sep="\t", row.names=FALSE)
+        } else {
+            write(paste0("Insufficient significant downregulated GO terms for contrast [",
+                contrast,
+                "]. No output file created"), stderr())
+        }
+    } else {
+            write(paste0("Insufficient significant downregulated GO terms for contrast [",
+                contrast,
+                "]. No output file created"), stderr())
+        }
+
+    return(NA)
+}
+
+tmp = lapply(contrast.list, function(x) {
+    find.overrep.go(x, fdr.cutoffs[[x]])
+    Sys.sleep(time=3)
+})
