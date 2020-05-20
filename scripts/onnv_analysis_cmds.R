@@ -93,23 +93,73 @@ d = do.filtering.normalization(d)
 
 do.mds.plots = function(d, samp.info, suffix="") {
 
+    mds = plotMDS(d, method="bcv")
+    mds.df = data.frame(names(mds$x), mds$x, mds$y, samp.info)
+
+    mds.df$label = ""
+    if ("TX2_D7_M_neg" %in% mds.df$names.mds.x) {
+        mds.df[mds.df$names.mds.x. == "TX2_D7_M_neg",]$label = "TX2_D7_M_neg"
+    }
+
     # Color by sex
-    pdf(paste0("reports/MDS_color_by_sex", suffix, ".pdf"))
-    p1 = plotMDS(d, method="bcv", col=as.numeric(factor(samp.info$sex)))
-    #print(p1)
-    dev.off()
+
+    p = ggplot(mds.df, aes(mds.x, mds.y,
+            col=sex, shape=infection.status, label=label)) +
+        geom_point(cex=3) +
+        geom_text_repel() +
+        xlab("BCV Distance 1") +
+        ylab("BCV Distance 2") +
+        theme_bw() +
+        scale_shape_manual(
+            values = c(16, 2),
+            breaks = c("plus", "neg"),
+            labels = c("Infected", "Control"),
+            name   = "Infection\nStatus:",
+        ) +
+        scale_color_manual(
+            values = c("#297A45", "#923158"),
+            breaks = c("F", "M"),
+            labels = c("Female", "Male"),
+            name   = "Sex:",
+        )
+    ggsave(p, file=paste0("reports/MDS_color_by_sex", suffix, ".pdf"),
+        height=6, width=6)
 
     # Color by dpi
-    pdf(paste0("reports/MDS_color_by_dpi", suffix, ".pdf"))
-    p2 = plotMDS(d, method="bcv", col=as.numeric(factor(samp.info$dpi)))
-    #print(p2)
-    dev.off()
+
+    p = ggplot(mds.df, aes(mds.x, mds.y,
+            fill=dpi, label=label)) +
+        geom_point(cex=3, shape=21) +
+        geom_text_repel() +
+        xlab("BCV Distance 1") +
+        ylab("BCV Distance 2") +
+        theme_bw() +
+        scale_fill_manual(
+            values = c("#D4A26A", "#552D00"),
+            breaks = c("D2", "D7"),
+            labels = c("2 dpi", "7 dpi"),
+            name   = "Time point:",
+        )
+    ggsave(p, file=paste0("reports/MDS_color_by_dpi", suffix, ".pdf"),
+        height=6, width=6)
 
     # Color by infection status
-    pdf(paste0("reports/MDS_color_by_infection", suffix, ".pdf"))
-    p3 = plotMDS(d, method="bcv", col=as.numeric(factor(samp.info$infection.status)))
-    #print(p3)
-    dev.off()
+
+    p = ggplot(mds.df, aes(mds.x, mds.y,
+            fill=infection.status, label=label)) +
+        geom_point(cex=3, shape=21) +
+        geom_text_repel() +
+        xlab("BCV Distance 1") +
+        ylab("BCV Distance 2") +
+        theme_bw() +
+        scale_fill_manual(
+            values = c("#802A15", "#FFFFFF"),
+            breaks = c("plus", "neg"),
+            labels = c("Infected", "Control"),
+            name   = "Infection\nStatus:",
+        )
+    ggsave(p, file=paste0("reports/MDS_color_by_infection", suffix, ".pdf"),
+        height=6, width=6)
 }
 
 do.mds.plots(d, samp.info)
@@ -120,7 +170,7 @@ d = d.full
 
 outlier = "TX2_D7_M_neg"
 
-d$counts  = d$counts[,colnames(d$counts) != outlier]
+d$counts  = d$counts[,colnames(d$counts)  != outlier]
 d$samples = d$samples[rownames(d$samples) != outlier,]
 
 outlier.idx = which(outlier == apply(samp.info, 1, function(x) {
@@ -162,44 +212,41 @@ my.contrasts = makeContrasts(
               (M_D7_neg + M_D7_plus) / 2,
 
     # Simple binary comparisons with one grouping - Infection status
-    inf.FvT =        (F_D2_neg  + F_D7_neg  + M_D2_neg  + M_D7_neg ) / 4 -
-                     (F_D2_plus + F_D7_plus + M_D2_plus + M_D7_plus) / 4,
-    inf.FvT.onlyD2 = (F_D2_neg  + M_D2_neg ) / 2 -
-                     (F_D2_plus + M_D2_plus) / 2,
-    inf.FvT.onlyD7 = (F_D7_neg  + M_D7_neg ) / 2 -
-                     (F_D7_plus + M_D7_plus) / 2,
-    inf.FvT.onlyF =  (F_D2_neg  + F_D7_neg ) / 2 -
-                     (F_D2_plus + F_D7_plus) / 2,
-    inf.FvT.onlyM =  (M_D2_neg  + M_D7_neg ) / 2 -
-                     (M_D2_plus + M_D7_plus) / 2,
+    inf.TvF =        (F_D2_plus + F_D7_plus + M_D2_plus + M_D7_plus ) / 4 -
+                     (F_D2_neg  + F_D7_neg  + M_D2_neg  + M_D7_neg) / 4,
+    inf.TvF.onlyD2 = (F_D2_plus + M_D2_plus ) / 2 -
+                     (F_D2_neg  + M_D2_neg) / 2,
+    inf.TvF.onlyD7 = (F_D7_plus + M_D7_plus ) / 2 -
+                     (F_D7_neg  + M_D7_neg) / 2,
+    inf.TvF.onlyF =  (F_D2_plus + F_D7_plus ) / 2 -
+                     (F_D2_neg  + F_D7_neg) / 2,
+    inf.TvF.onlyM =  (M_D2_plus + M_D7_plus ) / 2 -
+                     (M_D2_neg  + M_D7_neg) / 2,
 
     # Simple binary comparisons with one grouping - DPI
-    dpi.2v7 =       (F_D2_neg + F_D2_plus + M_D2_neg + M_D2_plus) / 4 -
-                    (F_D7_neg + F_D7_plus + M_D7_neg + M_D7_plus) / 4,
-    dpi.2v7.onlyF = (F_D2_neg + F_D2_plus) / 2 -
-                    (F_D7_neg + F_D7_plus) / 2,
-    dpi.2v7.onlyM = (M_D2_neg + M_D2_plus) / 2 -
-                    (M_D7_neg + M_D7_plus) / 2,
+    dpi.7v2 =       (F_D2_plus + F_D2_neg + M_D2_plus + M_D2_neg) / 4 -
+                    (F_D7_plus + F_D7_neg + M_D7_plus + M_D7_neg) / 4,
+    dpi.7v2.onlyF = (F_D2_plus + F_D2_neg) / 2 -
+                    (F_D7_plus + F_D7_neg) / 2,
+    dpi.7v2.onlyM = (M_D2_plus + M_D2_neg) / 2 -
+                    (M_D7_plus + M_D7_neg) / 2,
 
     # Between-sex differences by time
     between.sex.dpi =
-              ((F_D2_neg + F_D2_plus) / 2 - (F_D7_neg + F_D7_plus) / 2) / 2 -
-              ((M_D2_neg + M_D2_plus) / 2 - (M_D7_neg + M_D7_plus) / 2) / 2,
+              ((F_D7_neg + F_D7_plus) / 2 - (F_D2_neg + F_D2_plus) / 2) / 2 -
+              ((M_D7_neg + M_D7_plus) / 2 - (M_D2_neg + M_D2_plus) / 2) / 2,
 
     # Between-sex differences by infection status
     between.sex.inf =
-              ((F_D2_neg + F_D7_neg) / 2 - (F_D2_plus + F_D7_plus) / 2) / 2 -
-              ((M_D2_neg + M_D7_neg) / 2 - (M_D2_plus + M_D7_plus) / 2) / 2,
+              ((F_D2_plus + F_D7_plus) / 2 - (F_D2_neg + F_D7_neg) / 2) / 2 -
+              ((M_D2_plus + M_D7_plus) / 2 - (M_D2_neg + M_D7_neg) / 2) / 2,
     between.sex.inf.onlyD2 =
-              (F_D2_neg - F_D2_plus) / 2 -
-              (M_D2_neg - M_D2_plus) / 2,
+              (F_D2_plus - F_D2_neg) / 2 -
+              (M_D2_plus - M_D2_neg) / 2,
     between.sex.inf.onlyD7 =
-              (F_D7_neg - F_D7_plus) / 2 -
-              (M_D7_neg - M_D7_plus) / 2,
+              (F_D7_plus - F_D7_neg) / 2 -
+              (M_D7_plus - M_D7_neg) / 2,
     levels = design)
-
-#    # Levels:
-#    # F_D2_neg F_D2_plus F_D7_neg F_D7_plus M_D2_neg M_D2_plus M_D7_neg M_D7_plus
 
 contrast.list = colnames(my.contrasts)
 
@@ -238,21 +285,21 @@ fdr.cutoffs[["sex.FvM"]]        = 1e-18
 fdr.cutoffs[["sex.FvM.onlyD2"]] = 1e-18
 fdr.cutoffs[["sex.FvM.onlyD7"]] = 1e-18
 
-fdr.cutoffs[["inf.FvT"]]        = 1e-3
-fdr.cutoffs[["inf.FvT.onlyD2"]] = 1e-3
-fdr.cutoffs[["inf.FvT.onlyD7"]] = 0.1   # Reduced
-fdr.cutoffs[["inf.FvT.onlyF"]]  = 1e-3
-fdr.cutoffs[["inf.FvT.onlyM"]]  = 0.1   # Reduced
+fdr.cutoffs[["inf.TvF"]]        = 1e-3
+fdr.cutoffs[["inf.TvF.onlyD2"]] = 1e-3
+fdr.cutoffs[["inf.TvF.onlyD7"]] = 0.1   # Inceased
+fdr.cutoffs[["inf.TvF.onlyF"]]  = 1e-3
+fdr.cutoffs[["inf.TvF.onlyM"]]  = 0.1   # Inceased
 
-fdr.cutoffs[["dpi.2v7"]]       = 1e-3
-fdr.cutoffs[["dpi.2v7.onlyF"]] = 1e-3
-fdr.cutoffs[["dpi.2v7.onlyM"]] = 1e-3
+fdr.cutoffs[["dpi.7v2"]]       = 1e-3
+fdr.cutoffs[["dpi.7v2.onlyF"]] = 1e-3
+fdr.cutoffs[["dpi.7v2.onlyM"]] = 1e-3
 
 fdr.cutoffs[["between.sex.dpi"]] = 1e-3
 
-fdr.cutoffs[["between.sex.inf"]]        = 0.1  # Reduced
+fdr.cutoffs[["between.sex.inf"]]        = 0.1  # Inceased
 fdr.cutoffs[["between.sex.inf.onlyD2"]] = 1e-2
-fdr.cutoffs[["between.sex.inf.onlyD7"]] = 0.5  # Reduced A LOT
+fdr.cutoffs[["between.sex.inf.onlyD7"]] = 0.5  # Inceased A LOT
 
 all.de = lapply(contrast.list, function(x) { write.de.table(x, fdr.cutoffs[[x]]) })
 names(all.de) = contrast.list
@@ -287,15 +334,15 @@ plot.titles[["sex.FvM"]]        = "Sex (Female vs. Male)"
 plot.titles[["sex.FvM.onlyD2"]] = "Sex (Female vs. Male) [2 dpi]"
 plot.titles[["sex.FvM.onlyD7"]] = "Sex (Female vs. Male) [7 dpi]"
 
-plot.titles[["inf.FvT"]]        = "Infection status (Control vs. Infected)"
-plot.titles[["inf.FvT.onlyD2"]] = "Infection status (Control vs. Infected) [2 dpi]"
-plot.titles[["inf.FvT.onlyD7"]] = "Infection status (Control vs. Infected) [7 dpi]"
-plot.titles[["inf.FvT.onlyF"]]  = "Infection status (Control vs. Infected) [females]"
-plot.titles[["inf.FvT.onlyM"]]  = "Infection status (Control vs. Infected) [males]"
+plot.titles[["inf.TvF"]]        = "Infection status (Control vs. Infected)"
+plot.titles[["inf.TvF.onlyD2"]] = "Infection status (Control vs. Infected) [2 dpi]"
+plot.titles[["inf.TvF.onlyD7"]] = "Infection status (Control vs. Infected) [7 dpi]"
+plot.titles[["inf.TvF.onlyF"]]  = "Infection status (Control vs. Infected) [females]"
+plot.titles[["inf.TvF.onlyM"]]  = "Infection status (Control vs. Infected) [males]"
 
-plot.titles[["dpi.2v7"]] = "DPI (2 vs 7 days)"
-plot.titles[["dpi.2v7.onlyF"]] = "DPI (2 vs 7 days) [females]"
-plot.titles[["dpi.2v7.onlyM"]] = "DPI (2 vs 7 days) [males]"
+plot.titles[["dpi.7v2"]] = "DPI (2 vs 7 days)"
+plot.titles[["dpi.7v2.onlyF"]] = "DPI (2 vs 7 days) [females]"
+plot.titles[["dpi.7v2.onlyM"]] = "DPI (2 vs 7 days) [males]"
 
 plot.titles[["between.sex.dpi"]] = "Sex-based response to time (Female vs. Male)"
 
@@ -318,16 +365,42 @@ do.volcano.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
 
     adj.p = p.adjust(qlf[[contrast]]$table$PValue, method="fdr")
 
-    pdf(paste0("reports/volcano_plot-", contrast, ".pdf"))
+    volcano.dat = data.frame(
+        gene    = rownames(qlf[[contrast]]$table),
+        qlf[[contrast]]$table,
+        adj.p   = adj.p,
+        negLogP = -log10(adj.p)
+    )
 
-    volcano.dat = cbind(qlf[[contrast]]$table$logFC,
-                        -log10(adj.p))
-    colnames(volcano.dat) = c("logFC", "negLogP")
+    volcan.pos = volcano.dat[volcano.dat$logFC > 0,]
+    volcan.neg = volcano.dat[volcano.dat$logFC < 0,]
 
-    plot(volcano.dat, pch=19, cex=0.5,
-        col=c("black", "red")[factor(adj.p < fdr.cutoff)])
+    volcan.pos = volcan.pos[order(volcan.pos$PValue),]
+    volcan.neg = volcan.neg[order(volcan.neg$PValue),]
 
-    dev.off()
+    volcano.dat$label = ""
+
+    to.label = volcano.dat$gene %in% c(volcan.pos$gene[1:3], volcan.neg$gene[1:3])
+    volcano.dat[to.label,]$label = row.names(volcano.dat)[to.label]
+
+    p = ggplot(volcano.dat, aes(logFC, negLogP,
+            color = adj.p < fdr.cutoff, label=label)) +
+        geom_point(pch=19, cex=0.5) +
+        geom_text_repel(size=3, col="black",
+            nudge_y = max(volcano.dat$negLogP) / 10,
+            segment.alpha = 0.1) +
+        xlab("log(FC)") +
+        ylab("-log(p)") +
+        ylim(c(0, max(volcano.dat$negLogP) * 1.1)) +
+        theme_bw() +
+        scale_color_manual(
+            values = c("#E07B39", "black"),
+            breaks = c(TRUE, FALSE),
+            labels = c("DE", "Not DE"),
+            name   = "Differential\nExpression:",
+        )
+
+    ggsave(p, file=paste0("reports/volcano_plot-", contrast, ".pdf"))
 
     return(NA)
 }
@@ -336,21 +409,33 @@ tmp = lapply(contrast.list, function(x) {
     do.volcano.plot(x, fdr.cutoffs[[x]], plot.titles[[x]])
 })
 
-# Consider EnhancedVolcano BioConductor package
-
 # ----------------------------------------------------------------------------------------
 # --- DE genes: Expression profile heat map
 # ----------------------------------------------------------------------------------------
 
-do.heatmap.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
+do.heatmap.plot = function (contrast, fdr.cutoff=0.1, plot.title,
+                            plot.de = TRUE) {
 
     write(paste0("Heatmap for contrast [", contrast,
             "]"), stderr())
 
     adj.p = p.adjust(qlf[[contrast]]$table$PValue, method="fdr")
 
-    de.genes = rownames(qlf[[contrast]]$table)[adj.p < fdr.cutoff &
-                        abs(qlf[[contrast]]$table$logFC) > 1.5]
+    if (plot.de) {
+        de.genes = rownames(qlf[[contrast]]$table)[adj.p < fdr.cutoff &
+                            abs(qlf[[contrast]]$table$logFC) > 1.5]
+    } else {
+        all.genes = qlf[[contrast]]$table
+
+        all.pos = all.genes[all.genes$logFC > 0,]
+        all.neg = all.genes[all.genes$logFC < 0,]
+
+        all.pos = all.pos[order(all.pos$PValue),]
+        all.neg = all.neg[order(all.neg$PValue),]
+
+        de.genes = c(rownames(head(all.pos, n=50)),
+                     rownames(head(all.neg, n=50)))
+    }
 
     d.cpm = cpm(d, log=TRUE, prior.count = 1)
     de.cpm = d.cpm[which(rownames(d.cpm) %in% de.genes),]
@@ -371,32 +456,48 @@ do.heatmap.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
         return(NA)
     }
 
-    pal = colorRampPalette(rev(brewer.pal(9, "Blues")))(255)[255:1]
+    pal = colorRampPalette(rev(brewer.pal(9, "RdBu")))(255)[255:1]
 
-    pdf(paste0("reports/heatmap-", contrast, ".pdf"))
-    cim(t(de.cpm), color=pal, symkey=FALSE)
+    pdf(paste0("reports/heatmap-", contrast, ".pdf"),
+        width=10, height=6)
+    cim(t(de.cpm), color=pal, symkey=FALSE,
+        margins=c(15,15), row.cex=1, col.cex=0.5)
     dev.off()
 
     return(NA)
 }
 
 tmp = lapply(contrast.list, function(x) {
-    do.heatmap.plot(x, fdr.cutoffs[[x]], plot.titles[[x]])
+    do.heatmap.plot(x, fdr.cutoffs[[x]], plot.titles[[x]], plot.de=FALSE)
 })
 
 # ----------------------------------------------------------------------------------------
-# --- DE genes: PCA
+# --- PCA
 # ----------------------------------------------------------------------------------------
 
-do.pca.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
+do.pca.plot = function (contrast, fdr.cutoff=0.1, plot.title,
+                        plot.de = TRUE) {
 
     write(paste0("Doing PCA plot for contrast [", contrast, "]."), stderr())
 
     adj.p = p.adjust(qlf[[contrast]]$table$PValue, method="fdr")
 
-    de.genes = rownames(qlf[[contrast]]$table)[
-                            adj.p < fdr.cutoff &
-                            abs(qlf[[contrast]]$table$logFC) > 1.5]
+    if (plot.de) {
+        de.genes = rownames(qlf[[contrast]]$table)[
+                                adj.p < fdr.cutoff &
+                                abs(qlf[[contrast]]$table$logFC) > 1.5]
+    } else {
+        all.genes = qlf[[contrast]]$table
+
+        all.pos = all.genes[all.genes$logFC > 0,]
+        all.neg = all.genes[all.genes$logFC < 0,]
+
+        all.pos = all.pos[order(all.pos$PValue),]
+        all.neg = all.neg[order(all.neg$PValue),]
+
+        de.genes = c(rownames(head(all.pos, n=5)),
+                     rownames(head(all.neg, n=5)))
+    }
 
     if (length(de.genes) <= 2) {
         write(paste0("Insufficient DE genes for contrast [", contrast,
@@ -405,24 +506,24 @@ do.pca.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
     }
 
     d.cpm = cpm(d, log=TRUE, prior.count = 1)
-    de.cpm = d.cpm[which(rownames(d.cpm) %in% de.genes),]
 
-    df.pca = de.cpm
+    df.pca = d.cpm
 
     res.pca = prcomp(df.pca, scale = FALSE)
 
-    pca.labels = rownames(res.pca$x)
+    to.label = rownames(res.pca$x) %in% de.genes
+    pca.labels = rep("", nrow(res.pca$x))
+    pca.labels[to.label] = rownames(res.pca$x)[to.label]
 
     x.lims.exp = expand_range(range(res.pca$x[,1]), mul=0.2)
     y.lims.exp = expand_range(range(res.pca$x[,2]), mul=0.2)
 
-    de.gene.info = qlf[[contrast]]$table[pca.labels,]
-
     # Note colored by p-value, not adjusted p-value
     p = ggplot(res.pca$x, aes(PC1, PC2, label=pca.labels,
-            color=-1 * de.gene.info$logFC, size=-1 * log(de.gene.info$PValue))) +
+            color=-1 * qlf[[contrast]]$table$logFC,
+            size=-1 * log(qlf[[contrast]]$table$PValue))) +
         geom_point() +
-        geom_text_repel(size=2, segment.size=0.2, color="black") +
+        geom_text_repel(size=2, segment.size=0.2, segment.alpha=0.1, color="black") +
         coord_fixed() +
         xlim(x.lims.exp) +
         ylim(y.lims.exp) +
@@ -440,7 +541,7 @@ do.pca.plot = function (contrast, fdr.cutoff=0.1, plot.title) {
 }
 
 tmp = lapply(contrast.list, function(x) {
-    do.pca.plot(x, fdr.cutoffs[[x]], plot.titles[[x]])
+    do.pca.plot(x, fdr.cutoffs[[x]], plot.titles[[x]], plot.de = FALSE)
 })
 
 # ----------------------------------------------------------------------------------------
@@ -487,9 +588,15 @@ tmp = lapply(contrast.list, function(x) {
 do.expr_stripchart.plot = function (contrast, fdr.cutoff=0.1, plot.title,
     first.var, second.var, third.var) {
 
-    de.gene.info = topTags(qlf[[contrast]], n=10, adjust.method = "fdr")
+    de.gene.info = topTags(qlf[[contrast]], n=1000, adjust.method = "fdr")$table
+    de.gene.info.pos = de.gene.info[de.gene.info$logFC > 0,]
+    de.gene.info.neg = de.gene.info[de.gene.info$logFC < 0,]
 
-    de.genes = rownames(de.gene.info)
+    de.gene.info.pos = de.gene.info.pos[order(de.gene.info.pos$PValue),]
+    de.gene.info.neg = de.gene.info.neg[order(de.gene.info.neg$PValue),]
+
+    de.genes = c(rownames(de.gene.info.pos)[1:12],
+                 rownames(de.gene.info.neg)[1:12])
 
     d.cpm = cpm(d, log=TRUE, prior.count = 1)
     de.cpm = d.cpm[which(rownames(d.cpm) %in% de.genes),]
@@ -499,19 +606,41 @@ do.expr_stripchart.plot = function (contrast, fdr.cutoff=0.1, plot.title,
 
     de.cpm.t = cbind(de.cpm.t, samp.info)
 
-    p = ggplot(de.cpm.t, aes_string(x=first.var, y="CPM",
+    de.cpm.t$FC.is.pos = de.cpm.t$gene %in% rownames(de.gene.info.pos)[1:12]
+
+    de.cpm.t = merge(de.cpm.t, de.gene.info[,c(1,7,12)], by.x="gene", by.y="GeneID")
+    de.cpm.t = de.cpm.t[order(de.cpm.t$PValue),]
+
+    de.cpm.t$gene = factor(de.cpm.t$gene, levels = de.genes)
+
+    p = ggplot(de.cpm.t[de.cpm.t$FC.is.pos,], aes_string(x=first.var, y="CPM",
             color=second.var, fill=second.var, pch=third.var)) +
         geom_point(alpha=0.5) +
         geom_jitter(width=0.2) +
-        facet_grid(gene ~ ., scales="free_y") +
-        labs(title=plot.title, subtitle=paste0("DE genes (adjusted p < ", fdr.cutoff, ")")) +
+        facet_wrap(. ~ gene, scales="free_y", ncol=4) +
+        labs(title=plot.title, subtitle=paste0("+ve DE genes (adj. p < ", fdr.cutoff, ")")) +
         scale_color_brewer(palette="Dark2") +
         scale_fill_brewer(palette="Dark2") +
         scale_shape_manual(values=c(1, 16)) +
         theme_bw() +
         theme(strip.text = element_text(size = 6))
 
-    ggsave(p, file=paste0("reports/stripplot_DE_genes-", contrast, ".pdf"),
+    ggsave(p, file=paste0("reports/stripplot_DE_genes-", contrast, ".pos.pdf"),
+        width=4, height=7)
+
+    p = ggplot(de.cpm.t[!de.cpm.t$FC.is.pos,], aes_string(x=first.var, y="CPM",
+            color=second.var, fill=second.var, pch=third.var)) +
+        geom_point(alpha=0.5) +
+        geom_jitter(width=0.2) +
+        facet_wrap(. ~ gene, scales="free_y", ncol=4) +
+        labs(title=plot.title, subtitle=paste0("-ve DE genes (adj. p < ", fdr.cutoff, ")")) +
+        scale_color_brewer(palette="Dark2") +
+        scale_fill_brewer(palette="Dark2") +
+        scale_shape_manual(values=c(1, 16)) +
+        theme_bw() +
+        theme(strip.text = element_text(size = 6))
+
+    ggsave(p, file=paste0("reports/stripplot_DE_genes-", contrast, ".neg.pdf"),
         width=4, height=7)
 
     return(NA)
@@ -533,38 +662,38 @@ do.expr_stripchart.plot("sex.FvM.onlyD7", fdr.cutoffs[["sex.FvM.onlyD7"]],
 
 # --- Infection status
 
-do.expr_stripchart.plot("inf.FvT", fdr.cutoffs[["inf.FvT"]],
-    plot.titles[["inf.FvT"]],
+do.expr_stripchart.plot("inf.TvF", fdr.cutoffs[["inf.TvF"]],
+    plot.titles[["inf.TvF"]],
     "infection.status", "sex", "dpi")
 
-do.expr_stripchart.plot("inf.FvT.onlyD2", fdr.cutoffs[["inf.FvT.onlyD2"]],
-    plot.titles[["inf.FvT.onlyD2"]],
+do.expr_stripchart.plot("inf.TvF.onlyD2", fdr.cutoffs[["inf.TvF.onlyD2"]],
+    plot.titles[["inf.TvF.onlyD2"]],
     "infection.status", "sex", "dpi")
 
-do.expr_stripchart.plot("inf.FvT.onlyD7", fdr.cutoffs[["inf.FvT.onlyD7"]],
-    plot.titles[["inf.FvT.onlyD7"]],
+do.expr_stripchart.plot("inf.TvF.onlyD7", fdr.cutoffs[["inf.TvF.onlyD7"]],
+    plot.titles[["inf.TvF.onlyD7"]],
     "infection.status", "sex", "dpi")
 
-do.expr_stripchart.plot("inf.FvT.onlyF", fdr.cutoffs[["inf.FvT.onlyF"]],
-    plot.titles[["inf.FvT.onlyF"]],
+do.expr_stripchart.plot("inf.TvF.onlyF", fdr.cutoffs[["inf.TvF.onlyF"]],
+    plot.titles[["inf.TvF.onlyF"]],
     "infection.status", "dpi", "sex")
 
-do.expr_stripchart.plot("inf.FvT.onlyM", fdr.cutoffs[["inf.FvT.onlyM"]],
-    plot.titles[["inf.FvT.onlyM"]],
+do.expr_stripchart.plot("inf.TvF.onlyM", fdr.cutoffs[["inf.TvF.onlyM"]],
+    plot.titles[["inf.TvF.onlyM"]],
     "infection.status", "dpi", "sex")
 
 # --- DPI
 
-do.expr_stripchart.plot("dpi.2v7", fdr.cutoffs[["dpi.2v7"]],
-    plot.titles[["dpi.2v7"]],
+do.expr_stripchart.plot("dpi.7v2", fdr.cutoffs[["dpi.7v2"]],
+    plot.titles[["dpi.7v2"]],
     "infection.status", "sex", "dpi")
 
-do.expr_stripchart.plot("dpi.2v7.onlyF", fdr.cutoffs[["dpi.2v7.onlyF"]],
-    plot.titles[["dpi.2v7.onlyF"]],
+do.expr_stripchart.plot("dpi.7v2.onlyF", fdr.cutoffs[["dpi.7v2.onlyF"]],
+    plot.titles[["dpi.7v2.onlyF"]],
     "infection.status", "dpi", "sex")
 
-do.expr_stripchart.plot("dpi.2v7.onlyM", fdr.cutoffs[["dpi.2v7.onlyM"]],
-    plot.titles[["dpi.2v7.onlyM"]],
+do.expr_stripchart.plot("dpi.7v2.onlyM", fdr.cutoffs[["dpi.7v2.onlyM"]],
+    plot.titles[["dpi.7v2.onlyM"]],
     "infection.status", "dpi", "sex")
 
 # --- More complicated contrasts

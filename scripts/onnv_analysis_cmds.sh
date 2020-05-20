@@ -203,7 +203,7 @@ for IND in `cat $IND_FILE`; do
 
 done
 
-# --- Filter for mapped and paired reads
+# --- Filter for mapped reads
 
 module load bamtools
 
