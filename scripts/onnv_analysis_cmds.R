@@ -585,7 +585,7 @@ tmp = lapply(contrast.list, function(x) {
 # --- DE genes: Expression stripcharts
 # ----------------------------------------------------------------------------------------
 
-do.expr_stripchart.plot = function (contrast, fdr.cutoff=0.1, plot.title,
+do.expr_stripchart.plot = function (contrast, plot.title,
     first.var, second.var, third.var) {
 
     de.gene.info = topTags(qlf[[contrast]], n=1000, adjust.method = "fdr")$table
@@ -608,7 +608,7 @@ do.expr_stripchart.plot = function (contrast, fdr.cutoff=0.1, plot.title,
 
     de.cpm.t$FC.is.pos = de.cpm.t$gene %in% rownames(de.gene.info.pos)[1:12]
 
-    de.cpm.t = merge(de.cpm.t, de.gene.info[,c(1,7,12)], by.x="gene", by.y="GeneID")
+    de.cpm.t = merge(de.cpm.t, de.gene.info[,c(1,7,10)], by.x="gene", by.y="GeneID")
     de.cpm.t = de.cpm.t[order(de.cpm.t$PValue),]
 
     de.cpm.t$gene = factor(de.cpm.t$gene, levels = de.genes)
@@ -618,7 +618,7 @@ do.expr_stripchart.plot = function (contrast, fdr.cutoff=0.1, plot.title,
         geom_point(alpha=0.5) +
         geom_jitter(width=0.2) +
         facet_wrap(. ~ gene, scales="free_y", ncol=4) +
-        labs(title=plot.title, subtitle=paste0("+ve DE genes (adj. p < ", fdr.cutoff, ")")) +
+        labs(title=plot.title, subtitle=paste0("+ve DE genes")) +
         scale_color_brewer(palette="Dark2") +
         scale_fill_brewer(palette="Dark2") +
         scale_shape_manual(values=c(1, 16)) +
@@ -633,7 +633,7 @@ do.expr_stripchart.plot = function (contrast, fdr.cutoff=0.1, plot.title,
         geom_point(alpha=0.5) +
         geom_jitter(width=0.2) +
         facet_wrap(. ~ gene, scales="free_y", ncol=4) +
-        labs(title=plot.title, subtitle=paste0("-ve DE genes (adj. p < ", fdr.cutoff, ")")) +
+        labs(title=plot.title, subtitle=paste0("-ve DE genes")) +
         scale_color_brewer(palette="Dark2") +
         scale_fill_brewer(palette="Dark2") +
         scale_shape_manual(values=c(1, 16)) +
@@ -648,69 +648,69 @@ do.expr_stripchart.plot = function (contrast, fdr.cutoff=0.1, plot.title,
 
 # --- Sex
 
-do.expr_stripchart.plot("sex.FvM", fdr.cutoffs[["sex.FvM"]],
+do.expr_stripchart.plot("sex.FvM",
     plot.titles[["sex.FvM"]],
     "sex", "infection.status", "dpi")
 
-do.expr_stripchart.plot("sex.FvM.onlyD2", fdr.cutoffs[["sex.FvM.onlyD2"]],
+do.expr_stripchart.plot("sex.FvM.onlyD2",
     plot.titles[["sex.FvM.onlyD2"]],
     "sex", "infection.status", "sex")
 
-do.expr_stripchart.plot("sex.FvM.onlyD7", fdr.cutoffs[["sex.FvM.onlyD7"]],
+do.expr_stripchart.plot("sex.FvM.onlyD7",
     plot.titles[["sex.FvM.onlyD7"]],
     "sex", "infection.status", "sex")
 
 # --- Infection status
 
-do.expr_stripchart.plot("inf.TvF", fdr.cutoffs[["inf.TvF"]],
+do.expr_stripchart.plot("inf.TvF",
     plot.titles[["inf.TvF"]],
     "infection.status", "sex", "dpi")
 
-do.expr_stripchart.plot("inf.TvF.onlyD2", fdr.cutoffs[["inf.TvF.onlyD2"]],
+do.expr_stripchart.plot("inf.TvF.onlyD2",
     plot.titles[["inf.TvF.onlyD2"]],
     "infection.status", "sex", "dpi")
 
-do.expr_stripchart.plot("inf.TvF.onlyD7", fdr.cutoffs[["inf.TvF.onlyD7"]],
+do.expr_stripchart.plot("inf.TvF.onlyD7",
     plot.titles[["inf.TvF.onlyD7"]],
     "infection.status", "sex", "dpi")
 
-do.expr_stripchart.plot("inf.TvF.onlyF", fdr.cutoffs[["inf.TvF.onlyF"]],
+do.expr_stripchart.plot("inf.TvF.onlyF",
     plot.titles[["inf.TvF.onlyF"]],
     "infection.status", "dpi", "sex")
 
-do.expr_stripchart.plot("inf.TvF.onlyM", fdr.cutoffs[["inf.TvF.onlyM"]],
+do.expr_stripchart.plot("inf.TvF.onlyM",
     plot.titles[["inf.TvF.onlyM"]],
     "infection.status", "dpi", "sex")
 
 # --- DPI
 
-do.expr_stripchart.plot("dpi.7v2", fdr.cutoffs[["dpi.7v2"]],
+do.expr_stripchart.plot("dpi.7v2",
     plot.titles[["dpi.7v2"]],
     "infection.status", "sex", "dpi")
 
-do.expr_stripchart.plot("dpi.7v2.onlyF", fdr.cutoffs[["dpi.7v2.onlyF"]],
+do.expr_stripchart.plot("dpi.7v2.onlyF",
     plot.titles[["dpi.7v2.onlyF"]],
     "infection.status", "dpi", "sex")
 
-do.expr_stripchart.plot("dpi.7v2.onlyM", fdr.cutoffs[["dpi.7v2.onlyM"]],
+do.expr_stripchart.plot("dpi.7v2.onlyM",
     plot.titles[["dpi.7v2.onlyM"]],
     "infection.status", "dpi", "sex")
 
 # --- More complicated contrasts
 
-do.expr_stripchart.plot("between.sex.dpi", fdr.cutoffs[["between.sex.dpi"]],
+do.expr_stripchart.plot("between.sex.dpi",
     plot.titles[["between.sex.dpi"]],
     "sex", "dpi", "infection.status")
 
-do.expr_stripchart.plot("between.sex.inf", fdr.cutoffs[["between.sex.inf"]],
+do.expr_stripchart.plot("between.sex.inf",
     plot.titles[["between.sex.inf"]],
     "sex", "infection.status", "dpi")
 
-do.expr_stripchart.plot("between.sex.inf.onlyD2", fdr.cutoffs[["between.sex.inf.onlyD2"]],
+do.expr_stripchart.plot("between.sex.inf.onlyD2",
     plot.titles[["between.sex.inf.onlyD2"]],
     "sex", "infection.status", "dpi")
 
-do.expr_stripchart.plot("between.sex.inf.onlyD7", fdr.cutoffs[["between.sex.inf.onlyD7"]],
+do.expr_stripchart.plot("between.sex.inf.onlyD7",
     plot.titles[["between.sex.inf.onlyD7"]],
     "sex", "infection.status", "dpi")
 
@@ -772,7 +772,7 @@ find.overrep.go = function (contrast, fdr.cutoff=0.1) {
             custom_bg = rownames(qlf[[contrast]]$table),
             numeric_ns="NO_NAMESPACE", sources = NULL, as_short_link = FALSE)
         gpro.dn.simp = gpro.dn$result
-        gpro.dn.simp = gpro.dn.simp[gpro.up.simp$significant,
+        gpro.dn.simp = gpro.dn.simp[gpro.dn.simp$significant,
             c("p_value", "term_size", "query_size", "intersection_size",
                 "source", "term_id", "term_name")]
 
